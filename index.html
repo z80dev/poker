@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RETRO POKER // HEADS-UP vs DEEPSEEK</title>
+    <meta
+      name="description"
+      content="Retro CRT heads-up no-limit Texas Hold'em against a deepseek-v4-flash agent."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <div class="cabinet">
+      <header class="masthead">
+        <h1 class="logo">RETRO<span class="logo-accent">POKER</span></h1>
+        <div class="masthead-side">
+          <div class="marquee" id="marquee">
+            HEADS-UP NO-LIMIT HOLD'EM &nbsp;//&nbsp; HUMAN VS DEEPSEEK-V4-FLASH
+          </div>
+          <button
+            type="button"
+            class="btn btn-tiny"
+            id="sound-toggle"
+            aria-pressed="true"
+          >
+            SND:ON
+          </button>
+        </div>
+      </header>
+
+      <!-- ============================ CONFIG ============================ -->
+      <section class="screen" id="screen-config">
+        <div class="panel config-panel">
+          <h2 class="panel-title">INSERT COIN // CONFIGURE MATCH</h2>
+
+          <div class="config-grid">
+            <label class="field">
+              <span class="field-label">BUY-IN</span>
+              <select id="cfg-buyin">
+                <option value="1000">1000</option>
+                <option value="2500">2500</option>
+                <option value="5000" selected>5000</option>
+                <option value="10000">10000</option>
+                <option value="25000">25000</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">BLINDS</span>
+              <select id="cfg-blinds">
+                <option value="10/20">10 / 20</option>
+                <option value="25/50" selected>25 / 50</option>
+                <option value="50/100">50 / 100</option>
+                <option value="100/200">100 / 200</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">HANDS</span>
+              <select id="cfg-hands">
+                <option value="0" selected>UNLIMITED</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span class="field-label">SPEED</span>
+              <select id="cfg-speed">
+                <option value="1.6">SLOW</option>
+                <option value="1" selected>NORMAL</option>
+                <option value="0.5">TURBO</option>
+              </select>
+            </label>
+          </div>
+
+          <p class="config-note">
+            OPPONENT: <b>DEEPSEEK-V4-FLASH</b> VIA WORKER PROXY.<br />
+            IF THE NETWORK DROPS, THE AGENT PLAYS A SAFE LOCAL FALLBACK.
+          </p>
+
+          <button type="button" class="btn btn-primary btn-big" id="btn-start">
+            START MATCH
+          </button>
+        </div>
+      </section>
+
+      <!-- ============================= TABLE ============================= -->
+      <section class="screen hidden" id="screen-table">
+        <div class="scoreboard">
+          <div class="score-cell">
+            <span class="score-key">HAND</span
+            ><span class="score-val" id="score-hand">0</span>
+          </div>
+          <div class="score-cell">
+            <span class="score-key">WON</span
+            ><span class="score-val" id="score-won">0</span>
+          </div>
+          <div class="score-cell">
+            <span class="score-key">LOST</span
+            ><span class="score-val" id="score-lost">0</span>
+          </div>
+          <div class="score-cell">
+            <span class="score-key">NET</span
+            ><span class="score-val" id="score-net">0</span>
+          </div>
+          <div class="score-cell">
+            <span class="score-key">BLINDS</span
+            ><span class="score-val" id="score-blinds">25/50</span>
+          </div>
+        </div>
+
+        <div class="felt">
+          <!-- opponent -->
+          <div class="seat seat-agent" id="seat-2">
+            <div class="seat-info">
+              <div class="seat-name">
+                <span class="dealer-chip hidden" id="button-2">D</span>
+                DEEPSEEK
+                <span class="seat-tag" id="tag-2"></span>
+              </div>
+              <div class="seat-stack">
+                <span id="stack-2">0</span><span class="unit">CHIPS</span>
+              </div>
+              <div class="chip-pile" id="pile-2"></div>
+            </div>
+            <div class="hole-cards" id="hole-2"></div>
+            <div class="bet-area" id="bet-2"></div>
+          </div>
+
+          <div class="talk-row">
+            <div class="talk-bubble hidden" id="talk"></div>
+          </div>
+
+          <!-- board -->
+          <div class="board-area">
+            <div class="pot-display">
+              <span class="pot-label">POT</span>
+              <span class="pot-value" id="pot-value">0</span>
+              <span class="pot-chips" id="pot-chips"></span>
+            </div>
+            <div class="board" id="board"></div>
+            <div class="street-label" id="street-label">WAITING</div>
+          </div>
+
+          <!-- human -->
+          <div class="seat seat-human" id="seat-1">
+            <div class="bet-area" id="bet-1"></div>
+            <div class="hole-cards" id="hole-1"></div>
+            <div class="seat-info">
+              <div class="seat-name">
+                <span class="dealer-chip hidden" id="button-1">D</span>
+                YOU
+                <span class="seat-tag" id="tag-1"></span>
+              </div>
+              <div class="seat-stack">
+                <span id="stack-1">0</span><span class="unit">CHIPS</span>
+              </div>
+              <div class="chip-pile" id="pile-1"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-bar">
+          <span class="cursor">&gt;</span>
+          <span id="status-text">READY</span>
+          <span class="blink">_</span>
+        </div>
+
+        <!-- action controls -->
+        <div class="controls" id="controls">
+          <div class="control-row">
+            <button type="button" class="btn btn-fold" data-action="fold">
+              FOLD
+            </button>
+            <button type="button" class="btn btn-check" data-action="check">
+              CHECK
+            </button>
+            <button type="button" class="btn btn-call" data-action="call">
+              CALL
+            </button>
+            <button type="button" class="btn btn-raise" data-action="raise">
+              RAISE
+            </button>
+          </div>
+
+          <div class="control-row sizer hidden" id="sizer">
+            <div class="sizer-quick">
+              <button type="button" class="btn btn-tiny" data-size="min">
+                MIN
+              </button>
+              <button type="button" class="btn btn-tiny" data-size="half">
+                1/2 POT
+              </button>
+              <button type="button" class="btn btn-tiny" data-size="pot">
+                POT
+              </button>
+              <button type="button" class="btn btn-tiny" data-size="max">
+                ALL-IN
+              </button>
+            </div>
+            <input
+              type="range"
+              id="size-range"
+              min="0"
+              max="100"
+              step="1"
+              value="0"
+              aria-label="Bet size"
+            />
+            <div class="sizer-confirm">
+              <input type="number" id="size-input" aria-label="Bet amount" />
+              <button type="button" class="btn btn-primary" id="btn-confirm">
+                CONFIRM
+              </button>
+              <button type="button" class="btn" id="btn-cancel">CANCEL</button>
+            </div>
+          </div>
+
+          <div class="control-row hidden" id="next-row">
+            <button type="button" class="btn btn-primary btn-big" id="btn-next">
+              NEXT HAND
+            </button>
+          </div>
+        </div>
+
+        <div class="log-panel">
+          <div class="log-title">// TABLE LOG</div>
+          <div class="log" id="log"></div>
+        </div>
+
+        <div class="table-footer">
+          <button type="button" class="btn btn-tiny" id="btn-quit">
+            QUIT MATCH
+          </button>
+        </div>
+      </section>
+
+      <!-- =========================== GAME OVER =========================== -->
+      <section class="screen hidden" id="screen-over">
+        <div class="panel over-panel">
+          <h2 class="panel-title" id="over-title">MATCH OVER</h2>
+          <pre class="over-stats" id="over-stats"></pre>
+          <button type="button" class="btn btn-primary btn-big" id="btn-again">
+            NEW MATCH
+          </button>
+        </div>
+      </section>
+
+      <footer class="footer">
+        ENGINE PORTED FROM LEMON_POKER &nbsp;//&nbsp; NO FRAMEWORKS
+        &nbsp;//&nbsp; Z80.WTF
+      </footer>
+    </div>
+
+    <script src="engine.js"></script>
+    <script src="agent.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
