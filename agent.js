@@ -20,13 +20,12 @@
     (typeof require !== "undefined" ? require("./engine.js") : null);
 
   const DEFAULT_ENDPOINT = "https://poker-agent.z80.workers.dev";
-  // Live answers land in 2-5s, so 12s is generous headroom while giving a hung
-  // request up sooner. Upstream returns empty content on roughly one call in
-  // six; that failure is instant, so a third cheap attempt takes the odds of a
-  // visible [OFFLINE FALLBACK] from ~3% to ~0.5% per decision without
-  // stretching the worst case (3x12s) past the old one (2x20s).
-  const DEFAULT_TIMEOUT_MS = 12000;
-  const DEFAULT_ATTEMPTS = 3;
+  // Measured live: real poker decisions take 5-11s through the worker, with
+  // occasional longer reasoning bursts (deepseek-v4-flash reasons on state).
+  // 12s aborts caused spurious [OFFLINE FALLBACK]; 60s per attempt gives a
+  // slow reasoning burst room while 2 attempts bound the worst case.
+  const DEFAULT_TIMEOUT_MS = 60000;
+  const DEFAULT_ATTEMPTS = 2;
 
   const SYSTEM_PROMPT = [
     "You are DEEPSEEK, a sharp, aggressive heads-up poker agent in a retro arcade cabinet.",
