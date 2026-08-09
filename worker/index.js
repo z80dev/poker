@@ -23,7 +23,10 @@
 const ZEN_URL = "https://opencode.ai/zen/go/v1/chat/completions";
 const MODEL = "deepseek-v4-flash";
 const MAX_TOKENS = 2048;
-const EMPTY_RETRIES = 3;
+const EMPTY_RETRIES = 2;
+// thinking disabled: measured Aug 2026 on the zen endpoint — mean 10.1s -> 1.3s,
+// reasoning_content 6030 -> 0, empties 0 (empties were reasoning-budget burn).
+const THINKING_DISABLED = { type: "disabled" };
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
