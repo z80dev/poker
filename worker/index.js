@@ -12,11 +12,18 @@
  * The prompt instructs the model to answer `ACTION: <fold|check|call|bet N|raise N>`
  * exactly like the lemon_poker HeadsUpMatch runner, so the response is
  * forwarded as-is for the client-side parse_action().
+ *
+ * Robustness: deepseek-v4-flash is a reasoning model and occasionally returns
+ * HTTP 200 with empty content (measured up to ~40% at max_tokens=800, ~10% at
+ * 2048) when it spends the whole budget on reasoning_content. The worker
+ * retries upstream on empty content (up to EMPTY_RETRIES times) so the game
+ * client only sees a real failure when the model truly does not answer.
  */
 
 const ZEN_URL = "https://opencode.ai/zen/go/v1/chat/completions";
 const MODEL = "deepseek-v4-flash";
-const MAX_TOKENS = 800;
+const MAX_TOKENS = 2048;
+const EMPTY_RETRIES = 3;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -58,7 +65,7 @@ export default {
         : "You are a poker agent. Be concise. Follow the response format exactly.";
 
     const maxTokens = Number.isInteger(body.maxTokens)
-      ? Math.min(Math.max(body.maxTokens, 64), 2048)
+      ? Math.min(Math.max(body.maxTokens, 64), 4096)
       : MAX_TOKENS;
 
     const messages = [
@@ -66,53 +73,74 @@ export default {
       { role: "user", content: prompt },
     ];
 
-    try {
-      const upstream = await fetch(ZEN_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${env.ZEN_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages,
-          max_tokens: maxTokens,
-          temperature: 0.7,
-        }),
-      });
-
-      const upstreamText = await upstream.text();
-      if (!upstream.ok) {
-        return json(
-          {
-            error: `upstream ${upstream.status}: ${truncate(upstreamText, 300)}`,
-          },
-          502,
-        );
+    const attempts = EMPTY_RETRIES;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      const result = await callUpstream(env, messages, maxTokens);
+      if (result.kind === "ok") {
+        const content = result.content ?? "";
+        if (content.trim()) {
+          return json({
+            action: extractActionLine(content),
+            raw: content,
+            model: result.model ?? MODEL,
+            attempts: attempt,
+          });
+        }
+        // Empty content — retry. Reasoning-budget burn is transient.
+      } else {
+        return json({ error: result.error }, result.status ?? 502);
       }
-
-      let parsed;
-      try {
-        parsed = JSON.parse(upstreamText);
-      } catch {
-        return json({ error: "upstream returned invalid json" }, 502);
-      }
-
-      const content = parsed?.choices?.[0]?.message?.content ?? "";
-
-      return json({
-        action: extractActionLine(content),
-        raw: content,
-        model: parsed?.model ?? MODEL,
-      });
-    } catch (err) {
-      return json(
-        { error: `worker error: ${String(err?.message ?? err)}` },
-        500,
-      );
     }
+
+    return json({ error: "upstream returned empty content repeatedly" }, 502);
   },
 };
+
+async function callUpstream(env, messages, maxTokens) {
+  try {
+    const upstream = await fetch(ZEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${env.ZEN_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        max_tokens: maxTokens,
+        temperature: 0.7,
+      }),
+    });
+
+    const upstreamText = await upstream.text();
+    if (!upstream.ok) {
+      return {
+        kind: "error",
+        status: 502,
+        error: `upstream ${upstream.status}: ${truncate(upstreamText, 300)}`,
+      };
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(upstreamText);
+    } catch {
+      return { kind: "error", status: 502, error: "upstream returned invalid json" };
+    }
+
+    return {
+      kind: "ok",
+      content: parsed?.choices?.[0]?.message?.content ?? "",
+      model: parsed?.model,
+    };
+  } catch (err) {
+    return {
+      kind: "error",
+      status: 500,
+      error: `worker error: ${String(err?.message ?? err)}`,
+    };
+  }
+}
 
 function extractActionLine(content) {
   if (typeof content !== "string") return "";
