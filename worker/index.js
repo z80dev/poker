@@ -112,6 +112,7 @@ async function callUpstream(env, messages, maxTokens) {
         messages,
         max_tokens: maxTokens,
         temperature: 0.7,
+        thinking: THINKING_DISABLED,
       }),
     });
 
