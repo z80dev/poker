@@ -1,5 +1,5 @@
 /**
- * RETRO POKER — UI and game loop.
+ * AGENTPOKER — UI and game loop.
  *
  * Seat 1 is the human ("YOU"), seat 2 is the agent ("DEEPSEEK"). The engine
  * (engine.js) owns all rules; this file only renders state and feeds actions

@@ -1,4 +1,4 @@
-# RETRO POKER — Heads-Up vs DeepSeek
+# AGENTPOKER — Heads-Up vs DeepSeek
 
 Retro CRT-styled heads-up no-limit Texas Hold'em. You vs **DEEPSEEK**, an
 agent powered by `deepseek-v4-flash` reached through a Cloudflare Worker
