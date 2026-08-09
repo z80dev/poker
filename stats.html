@@ -129,6 +129,22 @@
         <tbody id="daily"></tbody>
       </table>
 
+      <h2 class="panel-title" style="margin-bottom: 8px">ACTIONS</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 24px">
+        <table class="stats-table">
+          <thead>
+            <tr><th>YOU</th><th>COUNT</th></tr>
+          </thead>
+          <tbody id="actions-human"></tbody>
+        </table>
+        <table class="stats-table">
+          <thead>
+            <tr><th>DEEPSEEK</th><th>COUNT</th></tr>
+          </thead>
+          <tbody id="actions-agent"></tbody>
+        </table>
+      </div>
+
       <h2 class="panel-title" style="margin-bottom: 8px">RECENT EVENTS</h2>
       <div id="recent" class="mono"></div>
     </div>
@@ -162,6 +178,8 @@
           const winRate = hands ? Math.round((you / hands) * 100) : 0;
           const net = s.net_chips;
           const fb = t.fallback_used || 0;
+          const pl = s.play || {};
+          const actions = s.actions || { human: {}, agent: {} };
 
           el("grid").innerHTML =
             card("VISITORS", fmt(s.visitors), `today ${fmt(s.visitors_today)}`) +
@@ -176,12 +194,24 @@
               "NET CHIPS",
               `<span class="${net >= 0 ? "pos" : "neg"}">${net >= 0 ? "+" : ""}${fmt(net)}</span>`,
             ) +
+            card("SHOWDOWN RATE", (pl.showdown_rate || 0) + "%") +
+            card("AVG POT", fmt(pl.avg_pot)) +
+            card("BIGGEST POT", fmt(pl.max_pot)) +
+            card("ALL-INS", fmt(pl.all_ins)) +
+            card("BIG POTS", fmt(pl.big_pots)) +
             card("AGENT DECISIONS", fmt(s.agent ? s.agent.decisions : 0)) +
             card(
               "AVG DECISION",
               (s.agent && s.agent.avg_latency_ms ? Math.round(s.agent.avg_latency_ms / 100) / 10 : 0) + "s",
             ) +
             card("FALLBACKS", fmt(fb), s.agent ? `retries ${s.agent.retried}` : "");
+
+          const distRows = (dist) =>
+            Object.entries(dist || {})
+              .map(([k, v]) => `<tr><td>${String(k).toUpperCase()}</td><td>${fmt(v)}</td></tr>`)
+              .join("") || '<tr><td colspan="2">no data yet</td></tr>';
+          el("actions-human").innerHTML = distRows(actions.human);
+          el("actions-agent").innerHTML = distRows(actions.agent);
 
           el("daily").innerHTML = (s.daily || [])
             .map(

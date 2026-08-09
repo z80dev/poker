@@ -698,6 +698,7 @@
         action = decision.action;
       }
 
+      const streetNow = state.table.hand ? state.table.hand.street : "";
       const applied = Table.act(state.table, legal.seat, action);
       if (!applied.ok) {
         // Should not happen: both paths validate first. Fail safe rather than stall.
@@ -714,6 +715,24 @@
         state.table = safe.table;
       } else {
         state.table = applied.table;
+
+        if (legal.seat === HUMAN) {
+          const norm = Table.normalizeAction(action);
+          track("human_action", {
+            action: norm.type,
+            amount: norm.amount || 0,
+            street: streetNow,
+          });
+        }
+
+        // All-in detection mirrors the CALL ALL-IN cap logic in announceAction.
+        const allInNow =
+          action.type === "bet" || action.type === "raise"
+            ? action.amount >= stackBefore
+            : action.type === "call" && legal.to_call >= stackBefore;
+        if (allInNow) {
+          track("all_in", { seat: legal.seat, street: streetNow });
+        }
       }
 
       announceAction(legal.seat, action, legal, decision, stackBefore);
@@ -801,10 +820,17 @@
     else if (humanDelta < 0) state.score.lost += 1;
 
     const potTotal = (result.pots || []).reduce((s, p) => s + p.amount, 0);
+    const streetMap = { 0: "PREFLOP", 3: "FLOP", 4: "TURN", 5: "RIVER" };
+    const street =
+      result.endedBy === "showdown"
+        ? "SHOWDOWN"
+        : streetMap[(result.board || []).length] || "PREFLOP";
     track("hand_end", {
       winner: humanDelta > 0 ? "you" : humanDelta < 0 ? "agent" : "chop",
       pot: potTotal,
       hand: state.score.hands,
+      street,
+      big_pot: potTotal >= state.config.bigBlind * 20 ? 1 : 0,
     });
 
     // Freeze a view of the finished hand so the table keeps showing it.
