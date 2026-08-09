@@ -20,11 +20,12 @@
     (typeof require !== "undefined" ? require("./engine.js") : null);
 
   const DEFAULT_ENDPOINT = "https://poker-agent.z80.workers.dev";
-  // Measured live: real poker decisions take 5-11s through the worker, with
-  // occasional longer reasoning bursts (deepseek-v4-flash reasons on state).
-  // 12s aborts caused spurious [OFFLINE FALLBACK]; 60s per attempt gives a
-  // slow reasoning burst room while 2 attempts bound the worst case.
-  const DEFAULT_TIMEOUT_MS = 60000;
+  // Measured live (12 realistic prompts, Aug 2026): median 13s, mean 22s,
+  // worst ~90-100s. The worker retries empty-content answers up to 3x, and a
+  // full retry chain can exceed 60s — which is why 60s aborts caused spurious
+  // [OFFLINE FALLBACK] mid-thought. 120s per attempt outlasts the worker's
+  // worst case (3x ~30s upstream calls); 2 attempts bound the worst case.
+  const DEFAULT_TIMEOUT_MS = 120000;
   const DEFAULT_ATTEMPTS = 2;
 
   const SYSTEM_PROMPT = [

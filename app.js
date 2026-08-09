@@ -629,12 +629,24 @@
         action = await awaitHumanAction(legal);
         if (stale(epoch)) return;
       } else {
-        setStatus("DEEPSEEK IS THINKING...");
+        // Live thinking clock: the model can legitimately take 5-90s+, so
+        // show elapsed seconds instead of a frozen status line.
+        const thinkStart = Date.now();
+        setStatus("DEEPSEEK IS THINKING... 0s");
+        const thinkTimer = setInterval(() => {
+          const secs = Math.round((Date.now() - thinkStart) / 1000);
+          setStatus(`DEEPSEEK IS THINKING... ${secs}s`);
+        }, 1000);
+        const stopThinking = () => clearInterval(thinkTimer);
         await pause(350);
-        if (stale(epoch)) return;
+        if (stale(epoch)) {
+          stopThinking();
+          return;
+        }
         decision = await Agent.decide(state.table, legal, {
           label: "DEEPSEEK",
         });
+        stopThinking();
         // The worker can take seconds; the match may be long gone by now, and
         // `legal` would then describe a table that no longer exists.
         if (stale(epoch)) return;
@@ -717,9 +729,9 @@
     }
 
     if (decision && decision.source === "fallback") {
-      text += " [OFFLINE FALLBACK]";
+      text += " [SLOW MODEL — AUTO PLAY]";
       if (decision.error)
-        log(`AGENT LINK: ${String(decision.error).toUpperCase()}`, "bad");
+        log(`AGENT ERROR: ${String(decision.error).toUpperCase()}`, "bad");
     }
 
     log(text, cls);
