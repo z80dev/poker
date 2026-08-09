@@ -20,6 +20,17 @@
 
   --pixel: "Press Start 2P", "Courier New", monospace;
   --term: "VT323", "Courier New", monospace;
+
+  /* Card metrics live in variables so a breakpoint can rescale the whole
+     table — board, hole cards, pips and corners — from one place. */
+  --card-w: 62px;
+  --card-h: 88px;
+  --card-gap: 8px;
+  --card-pip: 26px;
+  --card-corner: 11px;
+
+  /* Height of the collapsed log sheet handle on mobile. */
+  --log-bar: 30px;
 }
 
 * {
@@ -535,12 +546,13 @@ input:focus {
 .hole-cards,
 .board {
   display: flex;
-  gap: 8px;
+  gap: var(--card-gap);
 }
 
 .card {
-  width: 62px;
-  height: 88px;
+  width: var(--card-w);
+  height: var(--card-h);
+  flex: 0 0 auto;
   border-radius: 6px;
   background: var(--card-face);
   color: var(--ink);
@@ -568,12 +580,12 @@ input:focus {
 }
 
 .card .pip-big {
-  font-size: 26px;
+  font-size: var(--card-pip);
 }
 
 .card .corner {
   position: absolute;
-  font-size: 11px;
+  font-size: var(--card-corner);
   line-height: 1.2;
   text-align: center;
 }
@@ -778,6 +790,33 @@ input[type="range"]::-moz-range-thumb {
   color: var(--green-dim);
   padding: 8px 10px;
   border-bottom: 1px solid rgba(28, 122, 82, 0.4);
+  /* <summary> ships a disclosure triangle that fights the pixel type; the
+     [+]/[-] caret below plays the same role in the right typeface. */
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  user-select: none;
+}
+
+.log-title::-webkit-details-marker {
+  display: none;
+}
+
+.log-title:hover,
+.log-panel[open] > .log-title {
+  color: var(--green);
+}
+
+.log-caret::before {
+  content: "[+]";
+  color: var(--amber);
+}
+
+.log-panel[open] > .log-title .log-caret::before {
+  content: "[-]";
 }
 
 .log {
@@ -835,13 +874,22 @@ input[type="range"]::-moz-range-thumb {
 
 /* ------------------------------------------------------------ responsive */
 
-@media (max-width: 720px) {
+/* --- tablet / compact landscape: shrink, but keep the desktop shape ------ */
+
+@media (max-width: 900px) {
   html,
   body {
     font-size: 18px;
   }
+  :root {
+    --card-w: 52px;
+    --card-h: 74px;
+    --card-pip: 21px;
+    --card-corner: 9px;
+    --card-gap: 6px;
+  }
   .logo {
-    font-size: 16px;
+    font-size: 17px;
   }
   .marquee {
     display: none;
@@ -850,38 +898,466 @@ input[type="range"]::-moz-range-thumb {
     padding: 12px 10px 0;
   }
   .seat {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-  }
-  .seat-human {
-    align-items: flex-start;
+    gap: 10px;
   }
   .seat-info {
-    min-width: 0;
+    min-width: 150px;
   }
-  .card {
-    width: 48px;
-    height: 68px;
-  }
-  .card .pip-big {
-    font-size: 20px;
-  }
-  .card .corner {
-    font-size: 9px;
-  }
-  .scoreboard {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  /* Five cells over three columns leave a hole; let BLINDS close the row. */
-  .score-cell:last-child {
-    grid-column: span 2;
-  }
-  .control-row > .btn[data-action] {
-    flex: 1 1 45%;
+  .seat-stack {
+    font-size: 22px;
   }
   .log {
-    height: 120px;
+    height: 128px;
+  }
+}
+
+/* --- handheld: one screen, no page scroll, thumbs at the bottom ----------
+   The cabinet becomes the viewport: a fixed 100dvh flex column where only
+   the felt is elastic. Everything below the felt (status, controls) is
+   pinned in view, and the log turns into a collapsible sheet so it can
+   never push the action row past the fold.
+
+   Keyed on either axis: a narrow portrait phone and a short landscape one
+   need the same compact seats, and a felt with `overflow: hidden` clips
+   anything it can't shrink. Landscape adds its own tweaks further down. */
+
+@media (max-width: 640px), (max-height: 560px) and (orientation: landscape) {
+  html,
+  body {
+    font-size: 17px;
+    height: 100%;
+    overflow: hidden;
+  }
+  body {
+    padding: 0;
+  }
+
+  :root {
+    --card-w: clamp(38px, 13.5vw, 60px);
+    --card-h: calc(var(--card-w) * 1.42);
+    --card-pip: clamp(17px, 5.6vw, 26px);
+    --card-corner: 8px;
+    --card-gap: 4px;
+  }
+
+  .cabinet {
+    position: relative;
+    height: 100dvh;
+    max-width: none;
+    padding: 6px 8px 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .masthead {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom-width: 2px;
+  }
+  /* Logo, SND and QUIT share one line down to 320px, so all three scale
+     with the viewport rather than any of them being clipped. */
+  .logo {
+    font-size: clamp(10px, 3.3vw, 13px);
+    letter-spacing: 1px;
+  }
+  .footer {
+    display: none;
+  }
+
+  .screen {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  /* Config and game-over stay ordinary scrolling pages. */
+  #screen-config,
+  #screen-over {
+    overflow-y: auto;
+  }
+  .panel {
+    padding: 14px;
+  }
+  .config-panel,
+  .over-panel {
+    margin: 10px auto;
+  }
+  .panel-title {
+    font-size: 11px;
+    margin-bottom: 14px;
+  }
+  .config-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .config-note {
+    margin: 14px 0;
+    font-size: 16px;
+  }
+  select,
+  input[type="number"] {
+    padding: 10px 8px;
+    min-height: 44px;
+  }
+  .over-stats {
+    font-size: 18px;
+  }
+
+  /* ---- the table screen as a fixed column ---- */
+
+  #screen-table {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+  }
+
+  .scoreboard {
+    order: 1;
+    flex: 0 0 auto;
+    margin-bottom: 0;
+    grid-template-columns: repeat(5, 1fr);
+    border-width: 1px;
+    gap: 1px;
+  }
+  .score-cell {
+    padding: 3px 1px;
+    min-width: 0;
+  }
+  .score-key {
+    font-size: 6px;
+    margin-bottom: 2px;
+  }
+  .score-val {
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* QUIT lifts out of the flow into the masthead so the bottom of the
+     screen belongs entirely to the action row. The reserve has to cover
+     the button's own width or it lands on top of SND. */
+  .btn-tiny {
+    font-size: clamp(7px, 2.2vw, 8px);
+    padding: 7px 8px;
+  }
+  .cabinet:has(#screen-table:not(.hidden)) .masthead {
+    padding-right: clamp(88px, 28vw, 110px);
+  }
+  #screen-table .table-footer {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    margin: 0;
+    z-index: 40;
+  }
+
+  .felt {
+    order: 2;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding: 6px;
+    gap: 2px;
+    justify-content: space-between;
+    border-width: 2px;
+  }
+
+  /* Seats become one compact row: name + stack, cards, bet. */
+  .seat {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px;
+    border-width: 1px;
+  }
+  .seat-human {
+    /* DOM order is bet / cards / info; reversing lands the name on the left
+       so both seats read the same way down the screen. */
+    flex-direction: row-reverse;
+    justify-content: flex-end;
+  }
+  .seat-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .seat-name {
+    font-size: 8px;
+    gap: 5px;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .seat-tag {
+    font-size: 13px;
+  }
+  .seat-stack {
+    font-size: 19px;
+    white-space: nowrap;
+  }
+  .seat-stack .unit {
+    display: none;
+  }
+  .dealer-chip {
+    width: 15px;
+    height: 15px;
+    font-size: 6px;
+  }
+  /* Stack chips are pure decoration and cost a whole row of height; the
+     bet chips stay because they carry live information. */
+  .seat-info .chip-pile,
+  .pot-chips {
+    display: none;
+  }
+  .bet-area {
+    min-width: 0;
+    font-size: 15px;
+    flex: 0 0 auto;
+  }
+  .bet-area .chip-pile {
+    min-height: 0;
+    gap: 3px;
+  }
+  .bet-area .chip {
+    width: 13px;
+    height: 13px;
+    border-width: 1px;
+    margin-top: -9px;
+  }
+  .bet-area .chip::after {
+    inset: 2px;
+  }
+  .bet-area .chip-count {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+
+  .talk-row {
+    flex: 0 0 auto;
+  }
+  .talk-bubble {
+    font-size: 14px;
+    line-height: 1.25;
+    padding: 3px 8px;
+    max-width: 100%;
+    /* Long agent chatter must not eat the felt. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .board-area {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 4px 0;
+    gap: 4px;
+  }
+  /* Pot rides inline with the street label above the board. */
+  .pot-display {
+    gap: 6px;
+    font-size: 17px;
+  }
+  .pot-label {
+    font-size: 8px;
+  }
+  .pot-value {
+    font-size: 21px;
+  }
+  .street-label {
+    font-size: 8px;
+  }
+
+  /* ---- log: collapsible sheet between felt and status ---- */
+
+  .log-panel {
+    order: 3;
+    flex: 0 0 auto;
+    margin-top: 0;
+    border-width: 1px;
+  }
+  .log-title {
+    padding: 7px 10px;
+    font-size: 8px;
+    min-height: var(--log-bar);
+  }
+  .log {
+    height: 26dvh;
+    font-size: 15px;
+    padding: 6px 8px;
+    overscroll-behavior: contain;
+  }
+  .log-line {
+    /* Two lines each, then ellipsis — the whole line is still in the DOM
+       for anyone who widens the viewport. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .status-bar {
+    order: 4;
+    flex: 0 0 auto;
+    font-size: 15px;
+    min-height: 0;
+    padding: 5px 8px;
+    gap: 6px;
+    border-width: 1px;
+    border-top: none;
+  }
+  #status-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ---- controls: pinned to the bottom, 48px+ targets ---- */
+
+  .controls {
+    order: 5;
+    flex: 0 0 auto;
+    position: relative;
+    margin-top: 0;
+    gap: 6px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+  }
+  .control-row {
+    gap: 5px;
+    flex-wrap: nowrap;
+  }
+  .control-row > .btn[data-action] {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 54px;
+    font-size: 9px;
+    letter-spacing: 0;
+    padding: 8px 2px;
+    overflow: hidden;
+  }
+  .btn-big {
+    padding: 14px;
+    font-size: 12px;
+    min-height: 54px;
+  }
+
+  /* The sizer covers the action row instead of growing the column, so the
+     board never moves when you press RAISE. */
+  /* Kept deliberately short: the whole panel has to fit in the strip below
+     the felt (status bar + log handle + action row) or it starts covering
+     the cards it is asking you to bet on. */
+  #sizer:not(.hidden) {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
+    padding: 6px;
+    gap: 6px;
+    background: #0a1016;
+    border-color: var(--amber);
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.9);
+  }
+  .sizer-quick {
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
+  .sizer-quick .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    font-size: 8px;
+    padding: 6px 2px;
+  }
+  .sizer-confirm {
+    gap: 5px;
+  }
+  .sizer-confirm input {
+    flex: 1 1 70px;
+    min-width: 0;
+    font-size: 20px;
+    padding: 4px 8px;
+  }
+  .sizer-confirm .btn {
+    min-height: 46px;
+    font-size: 9px;
+    padding: 8px 10px;
+  }
+  input[type="range"] {
+    height: 22px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    width: 30px;
+    height: 22px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 30px;
+    height: 22px;
+  }
+}
+
+/* --- phone landscape: the block above already reshaped the table; this
+   only buys back the vertical millimetres a 400px-tall screen is short. -- */
+
+@media (max-height: 560px) and (orientation: landscape) {
+  /* Table talk is the one element that can be dropped without losing
+     state — it is echoed in the log. */
+  .talk-row {
+    display: none;
+  }
+  :root {
+    --card-w: clamp(28px, 4.6vw, 40px);
+    --card-h: calc(var(--card-w) * 1.42);
+    --card-pip: 15px;
+    --card-gap: 3px;
+  }
+  .cabinet {
+    padding-top: 4px;
+  }
+  /* Wide and short is the one shape where the middle of the table reads
+     better as a row: POT · board · street, all on the cards' own line. */
+  .board-area {
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 14px;
+  }
+  .masthead {
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+  }
+  .logo {
+    font-size: 12px;
+  }
+  .scoreboard {
+    /* Wide and short: the keys fit beside nothing else, so tighten rather
+       than wrap. */
+    grid-template-columns: repeat(5, 1fr);
+  }
+  .score-cell {
+    padding: 2px 1px;
+  }
+  .felt {
+    padding: 4px 8px;
+  }
+  .board-area {
+    padding: 2px 0;
+  }
+  .log {
+    height: 30dvh;
+  }
+  .control-row > .btn[data-action] {
+    min-height: 44px;
+  }
+  .btn-big {
+    min-height: 44px;
+    padding: 10px;
   }
 }
 

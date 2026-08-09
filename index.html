@@ -236,10 +236,13 @@
           </div>
         </div>
 
-        <div class="log-panel">
-          <div class="log-title">// TABLE LOG</div>
+        <details class="log-panel" id="log-panel" open>
+          <summary class="log-title">
+            <span>// TABLE LOG</span>
+            <span class="log-caret" aria-hidden="true"></span>
+          </summary>
           <div class="log" id="log"></div>
-        </div>
+        </details>
 
         <div class="table-footer">
           <button type="button" class="btn btn-tiny" id="btn-quit">

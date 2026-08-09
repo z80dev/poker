@@ -976,6 +976,21 @@
     endMatch("YOU QUIT");
   });
 
+  // The log is a <details> so the collapse is pure CSS, but a phone wants it
+  // shut on arrival — the felt needs that space more than the transcript does.
+  (function setUpLog() {
+    const panel = el("log-panel");
+    // Same test as the CSS: any viewport that pins the table to 100dvh.
+    const cramped =
+      "(max-width: 640px), (max-height: 560px) and (orientation: landscape)";
+    if (window.matchMedia(cramped).matches) panel.open = false;
+    // A collapsed log can't be scrolled, so lines appended while it was shut
+    // leave it parked at the top. Re-pin it to the newest line on open.
+    panel.addEventListener("toggle", () => {
+      if (panel.open) dom.log.scrollTop = dom.log.scrollHeight;
+    });
+  })();
+
   el("sound-toggle").addEventListener("click", () => {
     state.sound = !state.sound;
     const button = el("sound-toggle");
