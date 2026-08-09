@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AGENTPOKER // STATS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .stats-body {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 24px 16px 60px;
+      }
+      .stats-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+      .stat-card {
+        background: var(--panel, #1a2333);
+        border: 2px solid var(--teal-dim, #2b7a86);
+        border-radius: 8px;
+        padding: 12px 14px;
+      }
+      .stat-key {
+        font-size: 13px;
+        letter-spacing: 1px;
+        color: var(--teal, #34e2e2);
+        text-transform: uppercase;
+        display: block;
+        margin-bottom: 6px;
+      }
+      .stat-val {
+        font-size: 26px;
+        color: var(--ink, #dbe8f5);
+      }
+      .stat-val .sub {
+        font-size: 14px;
+        color: var(--muted, #9fb6c9);
+        margin-left: 4px;
+      }
+      .stats-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 17px;
+        margin-bottom: 24px;
+      }
+      .stats-table th,
+      .stats-table td {
+        text-align: left;
+        padding: 6px 10px;
+        border-bottom: 1px solid rgba(43, 122, 134, 0.35);
+      }
+      .stats-table th {
+        color: var(--teal, #34e2e2);
+        font-size: 13px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      .mono {
+        font-family: var(--mono, monospace);
+        font-size: 13px;
+        color: var(--muted, #9fb6c9);
+        word-break: break-all;
+      }
+      .error-box {
+        border: 2px solid #c1282f;
+        color: #ffb3b3;
+        padding: 14px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        font-size: 16px;
+      }
+      .updated {
+        font-size: 14px;
+        color: var(--muted, #9fb6c9);
+      }
+      .pos {
+        color: #7cf7a8;
+      }
+      .neg {
+        color: #ff8f8f;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+
+    <div class="stats-body">
+      <header class="stats-head">
+        <h1 class="logo" style="font-size: 28px">
+          AGENT<span class="logo-accent">POKER</span> // STATS
+        </h1>
+        <div>
+          <button class="btn btn-tiny" id="btn-refresh">REFRESH</button>
+          <span class="updated" id="updated"></span>
+        </div>
+      </header>
+
+      <div id="error" class="error-box hidden"></div>
+
+      <div class="stats-grid" id="grid"></div>
+
+      <h2 class="panel-title" style="margin-bottom: 8px">LAST 7 DAYS</h2>
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th>DAY</th>
+            <th>PAGEVIEWS</th>
+            <th>HANDS</th>
+          </tr>
+        </thead>
+        <tbody id="daily"></tbody>
+      </table>
+
+      <h2 class="panel-title" style="margin-bottom: 8px">RECENT EVENTS</h2>
+      <div id="recent" class="mono"></div>
+    </div>
+
+    <script>
+      const ENDPOINT = "https://poker-agent.z80.workers.dev/stats";
+      const el = (id) => document.getElementById(id);
+
+      const fmt = (n) => (n == null ? "0" : Number(n).toLocaleString());
+
+      function card(key, val, sub) {
+        return (
+          `<div class="stat-card"><span class="stat-key">${key}</span>` +
+          `<span class="stat-val">${val}${sub ? `<span class="sub">${sub}</span>` : ""}</span></div>`
+        );
+      }
+
+      async function load() {
+        try {
+          const res = await fetch(ENDPOINT, { headers: { Accept: "application/json" } });
+          if (!res.ok) throw new Error(`http ${res.status}`);
+          const s = await res.json();
+          el("error").classList.add("hidden");
+
+          const t = s.totals || {};
+          const w = s.hand_winners || {};
+          const you = w.you || 0;
+          const agent = w.agent || 0;
+          const chops = w.chop || 0;
+          const hands = you + agent + chops;
+          const winRate = hands ? Math.round((you / hands) * 100) : 0;
+          const net = s.net_chips;
+          const fb = t.fallback_used || 0;
+
+          el("grid").innerHTML =
+            card("VISITORS", fmt(s.visitors), `today ${fmt(s.visitors_today)}`) +
+            card("PAGEVIEWS", fmt(s.pageviews)) +
+            card("MATCHES", fmt(s.matches)) +
+            card("HANDS PLAYED", fmt(hands)) +
+            card("YOU WON", fmt(you)) +
+            card("DEEPSEEK WON", fmt(agent)) +
+            card("CHOPS", fmt(chops)) +
+            card("WIN RATE", winRate + "%") +
+            card(
+              "NET CHIPS",
+              `<span class="${net >= 0 ? "pos" : "neg"}">${net >= 0 ? "+" : ""}${fmt(net)}</span>`,
+            ) +
+            card("AGENT DECISIONS", fmt(s.agent ? s.agent.decisions : 0)) +
+            card(
+              "AVG DECISION",
+              (s.agent && s.agent.avg_latency_ms ? Math.round(s.agent.avg_latency_ms / 100) / 10 : 0) + "s",
+            ) +
+            card("FALLBACKS", fmt(fb), s.agent ? `retries ${s.agent.retried}` : "");
+
+          el("daily").innerHTML = (s.daily || [])
+            .map(
+              (d) =>
+                `<tr><td>${d.day}</td><td>${fmt(d.pageviews)}</td><td>${fmt(d.hands)}</td></tr>`,
+            )
+            .join("") || '<tr><td colspan="3">no data yet</td></tr>';
+
+          el("recent").innerHTML = (s.recent || [])
+            .map((r) => {
+              const when = new Date(r.ts).toISOString().slice(11, 19);
+              return `${when}  ${r.event.padEnd(16)} ${r.session}  ${r.payload}`;
+            })
+            .join("<br>") || "no events yet";
+
+          el("updated").textContent = `updated ${new Date().toLocaleTimeString()}`;
+        } catch (err) {
+          el("error").textContent = `STATS UNAVAILABLE: ${err.message}`;
+          el("error").classList.remove("hidden");
+        }
+      }
+
+      el("btn-refresh").addEventListener("click", load);
+      load();
+      setInterval(load, 30000);
+    </script>
+  </body>
+</html>

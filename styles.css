@@ -1392,3 +1392,11 @@ input[type="range"]::-moz-range-thumb {
     animation: none;
   }
 }
+
+.footer .stats-link {
+  color: var(--teal, #34e2e2);
+  text-decoration: none;
+}
+.footer .stats-link:hover {
+  text-decoration: underline;
+}

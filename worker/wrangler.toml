@@ -2,3 +2,8 @@ name = "poker-agent"
 main = "index.js"
 compatibility_date = "2026-08-08"
 workers_dev = true
+
+[[d1_databases]]
+binding = "poker_analytics"
+database_name = "poker-analytics"
+database_id = "beb0ae44-f923-4fef-bf76-3369c908eeee"

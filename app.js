@@ -12,6 +12,45 @@
   const { Card, Table, HandRank } = window.PokerEngine;
   const Agent = window.PokerAgent;
 
+  /* ------------------------------------------------------------ analytics */
+
+  const CLIENT_ID = (function () {
+    let id = null;
+    try {
+      id = localStorage.getItem("ap_client_id");
+    } catch (e) {}
+    if (!id) {
+      id =
+        window.crypto && crypto.randomUUID
+          ? crypto.randomUUID()
+          : "c" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+      try {
+        localStorage.setItem("ap_client_id", id);
+      } catch (e) {}
+    }
+    return id;
+  })();
+
+  /** Fire-and-forget analytics event to the worker's D1-backed /event. */
+  function track(event, data) {
+    try {
+      const body = { event, session: CLIENT_ID, data: data || {} };
+      if (event === "page_view") {
+        body.data.referrer = (document.referrer || "").slice(0, 200);
+        body.data.width = window.innerWidth;
+      }
+      fetch(Agent.DEFAULT_ENDPOINT + "/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        keepalive: true,
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
+  // One page_view per load (fires at script eval; scripts sit at end of body).
+  track("page_view");
+
   const HUMAN = 1;
   const AGENT = 2;
   const SEAT_NAMES = { 1: "YOU", 2: "DEEPSEEK" };
@@ -534,6 +573,12 @@
     state.running = true;
     const epoch = (state.epoch += 1);
 
+    track("match_start", {
+      buyin: config.buyIn,
+      blinds: `${config.smallBlind}/${config.bigBlind}`,
+      hands: config.hands,
+    });
+
     dom.log.innerHTML = "";
     showTalk("");
     showScreen("table");
@@ -732,6 +777,9 @@
       text += " [SLOW MODEL — AUTO PLAY]";
       if (decision.error)
         log(`AGENT ERROR: ${String(decision.error).toUpperCase()}`, "bad");
+      track("fallback_used", {
+        error: String(decision.error || "").slice(0, 120),
+      });
     }
 
     log(text, cls);
@@ -751,6 +799,13 @@
     state.score.net += humanDelta;
     if (humanDelta > 0) state.score.won += 1;
     else if (humanDelta < 0) state.score.lost += 1;
+
+    const potTotal = (result.pots || []).reduce((s, p) => s + p.amount, 0);
+    track("hand_end", {
+      winner: humanDelta > 0 ? "you" : humanDelta < 0 ? "agent" : "chop",
+      pot: potTotal,
+      hand: state.score.hands,
+    });
 
     // Freeze a view of the finished hand so the table keeps showing it.
     const showdown = result.showdown || {};
@@ -886,6 +941,16 @@
       `YOUR STACK    ${human}`,
       `DEEPSEEK      ${bot}`,
     ].join("\n");
+
+    track("match_end", {
+      reason: String(reason || "").slice(0, 60),
+      hands: state.score.hands,
+      won: state.score.won,
+      lost: state.score.lost,
+      net: state.score.net,
+      yourStack: human,
+      agentStack: bot,
+    });
 
     showScreen("over");
     if (human > bot) Sound.win();
